@@ -56,9 +56,9 @@ Alternatively, you can run the Mame command manually.
 Once Mame is running and showing the TI-99/4A home screen:
 
 1. Press any key.
-2. Press `1` for "TI BASIC"
-3. Type `OLD DSK1.BREAKOUT` and <Enter>
-4. Type `RUN` and <Enter>
+2. Press `1` for "TI BASIC".
+3. Type `OLD DSK1.BREAKOUT` and Enter.
+4. Type `RUN` and Enter.
 
 The program then starts on the animated title screen with some instructions
 and the high score. You can start a game by pressing the space bar. Control
@@ -96,8 +96,8 @@ difference:
   brought back to attention in 2013.
 * [Senior_falcon](https://atariage.com/forums/profile/34177-senior_falcon/)
   elaborated on the idea with [a
-  demo]}(https://atariage.com/forums/topic/218571-the-basic-sandbox-is-no-more/)
-  in 2013 and [an early prototype for a
+  demo](https://atariage.com/forums/topic/218571-the-basic-sandbox-is-no-more/)
+  in 2013 and an early [prototype for a
   game](https://atariage.com/forums/topic/273248-ti-basic-sprite-games/) in
   2017.
 
