@@ -42,7 +42,11 @@ On Linux, you can run the build script:
 
 Alternatively, you can run its commands manually.
 
-You'll then have the disk image `out/breakout.dsk`.
+You'll then have three alternatives binaries:
+* `out/breakout.prg`: a raw TI BASIC file.
+* `out/breakout.dsk`: a disk image with the BASIC file, for emulators like Mame.
+* `out/breakout.tfi`: the BASIC file in TIFILES format, for emulators like
+  Classic 99. Emulators may require the name without an extension.
 
 ## Running
 
