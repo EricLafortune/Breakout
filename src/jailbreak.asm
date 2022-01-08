@@ -31,6 +31,19 @@
     copy "include/basic_tokens.asm"
     copy "include/vdp.asm"
 
+* Specify the size of the disk file buffers on the target system, so the
+* absolute addresses in VDP RAM (for the jailbreak, code, resources) are
+* hardcoded correctly. The first option handles the most common
+* PEB/FDC/NanoPEB/CF7+ setups.
+
+disk_file_buffer_size equ >0828  ; For PEB/FDC.
+;disk_file_buffer_size equ >0622 ; For PEB/FDC with CALL FILES(2) (doesn't work
+                                 ; because of >2e byte in payload).
+;disk_file_buffer_size equ >041c ; For PEB/FDC with CALL FILES(1).
+;disk_file_buffer_size equ >0830 ; For NanoPEB/CF7+ (not necessary; already
+                                 ; handled automatically).
+;disk_file_buffer_size equ >0000 ; For CS1 without drives attached.
+
 *****************************************************************************
 * Macro: load a block of code from VDP RAM and branch to it.
 * IN #1: the address of the block in VDP RAM (a length byte followed by the
@@ -47,8 +60,8 @@
 * The xorg directives ensure correct label offsets in the code.
 
 basic_program_length equ >10b0
-basic_program_start  equ >37d8 - basic_program_length
-basic_program_end    equ basic_program_start + basic_program_length
+basic_program_end    equ >4000 - disk_file_buffer_size
+basic_program_start  equ basic_program_end - basic_program_length
 
     aorg basic_program_start - 8
 
@@ -101,6 +114,31 @@ payload
 payload_code
     .vdpwa_in_register r15     ; Put vdpwa in r15, for more compact code.
 
+* Shift the program in VDP RAM if necessary (to undo the 8 byte shift of the
+* NanoPEB/CF7+ drivers).
+    mov  @>8330, r0                  ; The actual address of the program.
+                                     ; (not overwritten yet, at this point).
+    li   r1, line_number_table_start ; The expected address of the program.
+    c    r0, r1
+    jhe  dont_shift_program    ; Shift (up) if the actual address is too low.
+
+    li   r2, basic_program_length
+    a    r2, r0                ; Compute the end of the source block.
+    a    r2, r1                ; Compute the end of the destination block.
+    ori  r1, >4000             ; Set the write bit on the destination address.
+shift_program_loop
+    dec  r0                    ; Read a byte.
+    .vdpwa r0
+    nop
+    .vdprd r3
+    dec  r1                    ; Write a byte.
+    .vdpwa r1
+    nop
+    .vdpwd r3
+    dec  r2
+    jne  shift_program_loop    ; Until all bytes have been moved.
+
+dont_shift_program
     .load_and_branch initialize_graphics_registers ; Continue with the game.
 
     bss  >83c6 - $             ; Padding to get to >83c6, which is >83e0
@@ -125,27 +163,39 @@ load_code_loop                 ; Copy the bytes.
 * GPL interpreter workspace during the GPL MOVE instruction. The console ROM
 * code branches to our payload code after it has copied our byte >83 to RAM
 * address >83ec, which is the MSB of r6.
-    data >0000 ; r0
     aorg
+    data >0000 ; r0
     data $ + 2 ; r1  VDP source address of the next byte (must be in the same
                ;     >0100 page as in the live string below the program).
                ;     The MOVE instruction then continues copying this original
                ;     of the live string.
-    xorg >83e4
-    data $ + 2 ; r2  RAM destination address of the next byte.
-    data >8358 ; r3
-    data >0090 ; r4
-    data >011e ; r5
-    data >8364 ; r6  Address of the code for GPL MOVE source VDP (was >0664).
-    data >0682 ; r7  Address of the code for GPL MOVE destination RAM.
-    data >00b6 ; r8  Remaining number of bytes to copy.
-    data >0000 ; r9
-    data >0560 ; r10
-    data >0000 ; r11 Byte that is copied.
-    data >0000 ; r12
-    data >9800 ; r13
-    data >0108 ; r14
-    data >8c02 ; r15 VDP write address.
+
+r2_vdp_peb     ;     The the next byte that we get with PEB/FDC.
+    data >83ec ; r2  Write the next byte to the MSB of r6.
+    data payload_code ; r6 Let GPL MOVE branch to our payload (must be >8364).
+
+    bss  4     ;     Pad the block to 8 bytes.
+
+r2_vdp_nanopeb ;     The next byte that we get with NanoPEB/CF7+
+               ;     (the whole program is shifted 8 bytes down in VDP RAM).
+    data >83ec ; r2  Write the next byte to the MSB of r6.
+    data payload_code ; r6 Let GPL MOVE branch to our payload (must be >8364).
+
+
+;   data $ + 2 ; r2  RAM destination address of the next byte.
+;   data >8358 ; r3
+;   data >0090 ; r4
+;   data >011e ; r5
+;   data >0664 ; r6  Address of the code for GPL MOVE source VDP.
+;   data >0682 ; r7  Address of the code for GPL MOVE destination RAM.
+;   data >00b6 ; r8  Remaining number of bytes to copy.
+;   data >0000 ; r9
+;   data >0560 ; r10
+;   data >0000 ; r11 Byte that is copied.
+;   data >0000 ; r12
+;   data >9800 ; r13
+;   data >0108 ; r14
+;   data >8c02 ; r15 VDP write address.
 
 * End of the string that is copied to scratchpad RAM.
 *****************************************************************************

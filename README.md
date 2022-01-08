@@ -23,17 +23,18 @@ the bricks before time runs out.
 
 ## Requirements
 
-* TI-99/4A home computer.
-* Floppy disk drive.
-
-or:
-
-* An emulator for the TI-99/4A, such as Mame.
+A TI-99/4A home computer or emulator, such as Mame.
 
 ## Building
 
 You need to have the [xdt99](https://github.com/endlos99/xdt99)
 cross-development tools installed, for the `xas99` assembler.
+
+By default, the program is configured to run on systems with the common
+PEB/FDC, NanoPEB, or CF7+ expansions. If you want to build a version for a
+basic system with only a cassette tape player or maybe with more exotic disk
+drives, you should first define the constant that is documented in
+`src/jailbreak.asm`.
 
 On Linux, you can run the build script:
 
