@@ -602,7 +602,7 @@ initialize_game_data
     li   r0, >bb00
     .vdpwd r0
 
-    .load_and_branch paddle_movement ; Continue with the game loop.
+    .load_and_branch paddle_movement_keyboard ; Continue with the game loop.
 
     .check_free 16
 
@@ -676,11 +676,6 @@ wait_title_screen_vdp_start
     xorg >8300
 
 wait_title_screen
-    .test_keyboard 0, 0        ; Key '='?
-    jeq  !
-    clr  @>83c4                ; Clear the custom interrupt address.
-    blwp @0                    ; Quit.
-!
     .test_keyboard 0, 1        ; Key ' '?
     jeq  continue_title_screen
 
@@ -724,7 +719,7 @@ unpause_loop
 !
     .test_keyboard 5, 3        ; Key '0'?
     jeq  !
-    .load_and_branch end_game
+    .load_and_branch draw_title_screen
 !
     .test_keyboard 0, 1        ; Key ' '?
     jeq  unpause_loop
@@ -733,7 +728,7 @@ unpause_release_loop
     .test_keyboard_row 1       ; Release key ' '?
     jne  unpause_release_loop
 
-    .load_and_branch paddle_movement
+    .load_and_branch paddle_movement_keyboard
 
     .check_free 16
 
@@ -742,49 +737,30 @@ pause_vdp_start_swap equ ((pause_vdp_start+1)/256) | ((pause_vdp_start+1)*256)
 pause_vdp_length     equ $ - pause_vdp_start - 2
 
 *****************************************************************************
-* Code block: main game loop - paddle movement.
+* Code block: main game loop - paddle movement with the keyboard.
 
     aorg
     even
-paddle_movement_vdp_start
-    data paddle_movement_vdp_length
+paddle_movement_keyboard_vdp_start
+    data paddle_movement_keyboard_vdp_length
     xorg >8300
 
 paddle_speed equ >0100
 
 cru_read_keyboard_row_bit_count equ 8
 
-paddle_movement
-    .set_keyboard_column 0     ; Keys '=' ... 'ctrl'?
+paddle_movement_keyboard
 
-    .test_keyboard_row 0       ; Key '='?
-    jeq  !
-    clr  @>83c4                ; Clear the custom interrupt address.
-    blwp @0                    ; Quit.
-!
-    .test_keyboard_row 1       ; Key ' '?
+* Check the keyboard.
+
+    .test_keyboard 0, 1        ; Key ' '?
     jeq  !
     .load_and_branch pause
 !
-   .test_keyboard 1, 3         ; Key '9'?
-    jeq  !
-    .load_and_branch reset_game_screen
-!
-    .set_keyboard_column 5     ; Keys '/' ... 'Z'.
-!
-    .test_keyboard_row 3       ; Key '0'?
-    jeq  !
-    .load_and_branch end_game
-!
-    .test_keyboard_row 7       ; Key 'Z'?
+    .test_keyboard 5, 7        ; Key 'Z'?
     jeq  !
     ai   r6, -2*paddle_speed
 !
-    .test_keyboard_row 0       ; Key '/'?
-    jeq  !
-    ai   r6, 2*paddle_speed
-!
-
     .set_keyboard_column 1     ; Keys '.' ... 'X'.
 
     .test_keyboard_row 7       ; Key 'X'?
@@ -793,8 +769,79 @@ paddle_movement
 !
     .test_keyboard_row 0       ; Key '.'?
     jeq  !
+    ai   r6, 2*paddle_speed
+!
+    .test_keyboard 2, 0        ; Key ','?
+    jeq  !
     ai   r6, paddle_speed
 !
+    li   r12, cru_write_keyboard_column
+
+    .load_and_branch paddle_movement_mouse
+
+    .check_free 16
+
+    aorg
+paddle_movement_keyboard_vdp_start_swap equ ((paddle_movement_keyboard_vdp_start+1)/256) | ((paddle_movement_keyboard_vdp_start+1)*256)
+paddle_movement_keyboard_vdp_length     equ $ - paddle_movement_keyboard_vdp_start - 2
+
+*****************************************************************************
+* Code block: main game loop - paddle movement with the Mechatronic mouse
+*             on the joystock port.
+*
+*   https://github.com/mamedev/mame/blob/master/src/devices/bus/ti99/joyport/mecmouse.cpp
+*   https://atariage.com/forums/topic/300687-tipi-xb-mouse-driver-like-mechatronics-driver/?do=findComment&comment=4433510
+
+    aorg
+    even
+paddle_movement_mouse_vdp_start
+    data paddle_movement_mouse_vdp_length
+    xorg >8300
+
+mouse_loop
+    li   r0, >0600              ; Switch to the x axis.
+    ldcr r0, cru_keyboard_column_bit_count
+
+    li   r0, >0700
+    ldcr r0, cru_keyboard_column_bit_count
+
+    li   r12, >0008             ; Read 3 bits of motion on the x axis.
+    stcr r1, 3
+
+    li   r12, cru_write_keyboard_column
+    li   r0, >0600              ; Switch to the y axis.
+    ldcr r0, cru_keyboard_column_bit_count
+
+    li   r0, >0700
+    ldcr r0, cru_keyboard_column_bit_count
+
+    srl  r1, 8                  ; Decode and add the 3 bits on the x axis.
+    inc  r1
+    sla  r1, 13
+    sra  r1, 7
+    jeq  mouse_loop_end         ; Until there is no more motion.
+    a    r1, r6
+    jmp  mouse_loop
+mouse_loop_end
+
+    .load_and_branch paddle_update
+
+    .check_free 16
+
+    aorg
+paddle_movement_mouse_vdp_start_swap equ ((paddle_movement_mouse_vdp_start+1)/256) | ((paddle_movement_mouse_vdp_start+1)*256)
+paddle_movement_mouse_vdp_length     equ $ - paddle_movement_mouse_vdp_start - 2
+
+*****************************************************************************
+* Code block: main game loop - paddle update.
+
+    aorg
+    even
+paddle_update_vdp_start
+    data paddle_update_vdp_length
+    xorg >8300
+
+paddle_update
     mov  r9, r0                ; Check the left edge.
     sla  r0, 11
     neg  r0
@@ -820,8 +867,8 @@ paddle_movement
     .check_free 16
 
     aorg
-paddle_movement_vdp_start_swap equ ((paddle_movement_vdp_start+1)/256) | ((paddle_movement_vdp_start+1)*256)
-paddle_movement_vdp_length     equ $ - paddle_movement_vdp_start - 2
+paddle_update_vdp_start_swap equ ((paddle_update_vdp_start+1)/256) | ((paddle_update_vdp_start+1)*256)
+paddle_update_vdp_length     equ $ - paddle_update_vdp_start - 2
 
 *****************************************************************************
 * Code block: main game loop - ball/paddle collision.
@@ -1020,13 +1067,44 @@ no_ball_update
     jne  !
     li   r8, 4                 ; Clear the remaining time.
 !
-    .load_and_branch play_sound
+    .load_and_branch function_keys
 
     .check_free 16
 
     aorg
 ball_movement_vdp_start_swap equ ((ball_movement_vdp_start+1)/256) | ((ball_movement_vdp_start+1)*256)
 ball_movement_vdp_length     equ $ - ball_movement_vdp_start - 2
+
+*****************************************************************************
+* Code block: main game loop - function keys.
+
+    aorg
+    even
+function_keys_vdp_start
+    data function_keys_vdp_length
+    xorg >8300
+
+function_keys
+    .test_keyboard 5, 3        ; Key '0'?
+    jeq  !
+    .load_and_branch draw_title_screen
+!
+   .test_keyboard 1, 3         ; Key '9'?
+    jeq  !
+    .load_and_branch reset_game_screen
+!
+    .test_keyboard 0, 0        ; Key '='?
+    jeq  !
+    clr  @>83c4                ; Clear the custom interrupt address.
+    blwp @0                    ; Quit.
+!
+    .load_and_branch play_sound
+
+    .check_free 16
+
+    aorg
+function_keys_vdp_start_swap equ ((function_keys_vdp_start+1)/256) | ((function_keys_vdp_start+1)*256)
+function_keys_vdp_length     equ $ - function_keys_vdp_start - 2
 
 *****************************************************************************
 * Code block: main game loop - play sound.
@@ -1125,7 +1203,7 @@ dont_write_score
     jne  !
     .load_and_branch play_sound        ; Continue adding the time bonus.
 !
-    .load_and_branch paddle_movement   ; Continue with the game loop.
+    .load_and_branch paddle_movement_keyboard ; Continue with the game loop.
 
     .check_free 16
 

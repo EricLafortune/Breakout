@@ -7,4 +7,5 @@ exec mame ti99_4a \
   -ioport peb \
   -ioport:peb:slot8 tifdc \
   -flop1 out/breakout.dsk \
+  -joyport mecmouse \
   "$@"

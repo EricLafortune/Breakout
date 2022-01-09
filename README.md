@@ -9,6 +9,7 @@ the bricks before time runs out.
 * Fast and smooth.
 * Straight into the action with 4 bouncing balls.
 * Colorful graphics, sounds, chords, and chord progressions.
+* Keyboard or Mechatronic mouse.
 * Entirely written in TMS-9900 assembly code.
 * Runs on a console without expansion cartridges, by breaking out of the
   TI BASIC sandbox.
@@ -66,12 +67,18 @@ Once Mame is running and showing the TI-99/4A home screen:
 4. Type `RUN` and Enter.
 
 The program then starts on the animated title screen with some instructions
-and the high score. You can start a game by pressing the space bar. Control
-the paddle with `Z` and `X` (fast/slow left), and `.` and `/` (slow/fast
-right). The shrinking red bar on the left shows the remaining time. The number
-on the right shows the score. When you clear a playing field, you get a time
-bonus and a new, wider playing field. The available time remains the same, so
-make good use of the bouncing balls to clear the field in time!
+and the high score. Start a game by pressing the space bar or Redo. You can
+control the paddle in two ways:
+
+* With the keyboard: `Z`/`X` for fast/slow left) and `,`/`.` for slow/fast
+  right.
+* With a Mechatronic mouse attached to the joystick port (or emulated).
+
+You can pause the game with the space bar. The shrinking red bar on the left
+shows the remaining time. The number on the right shows the score. When you
+clear a playing field, you get a time bonus and a new, wider playing field.
+The available time remains the same, so make good use of the bouncing balls to
+clear the field in time!
 
 You can exit Mame by pressing `Insert` and then `Esc`.
 

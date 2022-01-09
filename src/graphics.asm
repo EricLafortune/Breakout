@@ -248,7 +248,7 @@ arrow_patterns
 
     byte :11111110
     byte :11011100
-    byte :11111000
+    byte :11011000
     byte :11110000
     byte :11100000
     byte :11000000
@@ -261,11 +261,11 @@ arrow_patterns
     byte :11110000
     byte :11111000
     byte :11111100
-    byte :11110110
-    byte :11101111
+    byte :11111110
+    byte :11111111
 
-    byte :11011111
-    byte :10111110
+    byte :11111111
+    byte :11011110
     byte :11111100
     byte :11111000
     byte :11110000
