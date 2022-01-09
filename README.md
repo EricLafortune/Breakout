@@ -70,7 +70,7 @@ The program then starts on the animated title screen with some instructions
 and the high score. Start a game by pressing the space bar or Redo. You can
 control the paddle in two ways:
 
-* With the keyboard: `Z`/`X` for fast/slow left) and `,`/`.` for slow/fast
+* With the keyboard: `Z`/`X` for fast/slow left and `,`/`.` for slow/fast
   right.
 * With a Mechatronic mouse attached to the joystick port (or emulated).
 
