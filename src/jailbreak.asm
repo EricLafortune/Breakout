@@ -170,7 +170,7 @@ load_code_loop                 ; Copy the bytes.
                ;     The MOVE instruction then continues copying this original
                ;     of the live string.
 
-r2_vdp_peb     ;     The the next byte that we get with PEB/FDC.
+r2_vdp_peb     ;     The next byte that we get with PEB/FDC.
     data >83ec ; r2  Write the next byte to the MSB of r6.
     data payload_code ; r6 Let GPL MOVE branch to our payload (must be >8364).
 
