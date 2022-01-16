@@ -31,12 +31,6 @@ A TI-99/4A home computer or emulator, such as Mame.
 You need to have the [xdt99](https://github.com/endlos99/xdt99)
 cross-development tools installed, for the `xas99` assembler.
 
-By default, the program is configured to run on systems with the common
-PEB/FDC, NanoPEB, or CF7+ expansions. If you want to build a version for a
-basic system with only a cassette tape player or maybe with more exotic disk
-drives, you should first define the constant that is documented in
-`src/jailbreak.asm`.
-
 On Linux, you can run the build script:
 
     ./build.sh
@@ -106,12 +100,13 @@ difference:
   [prototype](https://atariage.com/forums/topic/162941-assembly-on-the-994a/?do=findComment&comment=2849894),
   which [Vorticon](https://atariage.com/forums/profile/25753-vorticon/)
   brought back to attention in 2013.
-* [Senior_falcon](https://atariage.com/forums/profile/34177-senior_falcon/)
+* [Senior\_falcon](https://atariage.com/forums/profile/34177-senior_falcon/)
   elaborated on the idea with [a
   demo](https://atariage.com/forums/topic/218571-the-basic-sandbox-is-no-more/)
   in 2013 and an early [prototype for a
   game](https://atariage.com/forums/topic/273248-ti-basic-sprite-games/) in
-  2017.
+  2017. He also contributed enhancements for this project that make the code
+  relocatable on systems with different hardware.
 
 This game takes the prototypes a step further, with the help of modern
 technology -- notably the brilliant [xdt99](https://github.com/endlos99/xdt99)

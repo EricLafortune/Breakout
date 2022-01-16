@@ -31,19 +31,6 @@
     copy "include/basic_tokens.asm"
     copy "include/vdp.asm"
 
-* Specify the size of the disk file buffers on the target system, so the
-* absolute addresses in VDP RAM (for the jailbreak, code, resources) are
-* hardcoded correctly. The first option handles the most common
-* PEB/FDC/NanoPEB/CF7+ setups.
-
-disk_file_buffer_size equ >0828  ; For PEB/FDC.
-;disk_file_buffer_size equ >0622 ; For PEB/FDC with CALL FILES(2) (doesn't work
-                                 ; because of >2e byte in payload).
-;disk_file_buffer_size equ >041c ; For PEB/FDC with CALL FILES(1).
-;disk_file_buffer_size equ >0830 ; For NanoPEB/CF7+ (not necessary; already
-                                 ; handled automatically).
-;disk_file_buffer_size equ >0000 ; For CS1 without drives attached.
-
 *****************************************************************************
 * Macro: load a block of code from VDP RAM and branch to it.
 * IN #1: the address of the block in VDP RAM (a length byte followed by the
@@ -59,8 +46,11 @@ disk_file_buffer_size equ >0828  ; For PEB/FDC.
 * The aorg directives take care of any padding in the file.
 * The xorg directives ensure correct label offsets in the code.
 
-basic_program_length equ >10b0
-basic_program_end    equ >4000 - disk_file_buffer_size
+basic_program_length equ >1120
+basic_program_end    equ >37d8 ; We're counting the address after the program.
+                               ; We've selected the value for PEB + FDC +
+                               ; CALL FILES(3), but the code automatically
+                               ; shifts itself at runtime if necessary.
 basic_program_start  equ basic_program_end - basic_program_length
 
     aorg basic_program_start - 8
@@ -73,20 +63,78 @@ basic_program_start  equ basic_program_end - basic_program_length
 
 * The BASIC program.
 line_number_table_start        ; Lines in reverse order.
+    data 9
+    data tokens_line_open
+    data 8
+    data tokens_line_hchar5
+    data 7
+    data tokens_line_hchar4
+    data 6
+    data tokens_line_hchar3
+    data 5
+    data tokens_line_hchar2
+    data 4
+    data tokens_line_hchar1
+    data 3
+    data tokens_line_rem4
+    data 2
+    data tokens_line_rem3
+    data 1
+    data tokens_line_rem2
     data 0
-    data payload_tokens
+    data tokens_line_rem1
 line_number_table_end equ $ - 1
 
 checksum equ line_number_table_end ^ line_number_table_start
 
+* Start the basic program with some comments.
+    byte >0a
+tokens_line_rem1
+    .rem 'Breakout'
+
+    byte >1e
+tokens_line_rem2
+    .rem '(c) 2021-2022 Eric Lafortune'
+
+    byte >21
+tokens_line_rem3
+    .rem 'Jailbreak by the brothers Tesio'
+
+    byte >1f
+tokens_line_rem4
+    .rem 'Enhancements by senior_falcon'
+
+* Set up the screen table, which we use as a source of bytes at known
+* locations in VDP RAM. Technique developed by senior_falcon @ AtariAge.
+tokens_line_hchar1
+    .call1 'SCREEN', '1'
+
+    byte >1e
+tokens_line_hchar2
+    .call4 'HCHAR', '1', '1', '159', '255' ; VDP >0000..>00fe: >9f + >60 = >ff
+
+    byte >1e
+tokens_line_hchar3
+    .call4 'HCHAR', '8', '32', '35', '135' ; VDP >00ff..>0185: >23 + >60 = >83
+
+    byte >18
+tokens_line_hchar4
+    .call3 'HCHAR', '9', '1', '140'        ; VDP >0100:        >8c + >60 = >ec
+
+    byte >19
+tokens_line_hchar5
+    .call3 'HCHAR', '13', '5', '140'       ; VDP >0184:        >8c + >60 = >ec
+    even
+
+* Call OPEN for the jailbreak. Technique developed by the brothers Riccardo
+* and Corrado Tesio.
 token_table_start
-    byte payload_tokens_length
-payload_tokens                 ; BASIC line OPEN #1:"... <payload> ..."
+    byte tokens_line_open_length
+tokens_line_open                 ; BASIC line OPEN #1:"... <payload> ..."
     byte token_open
     byte token_hash
     byte token_unquoted_string
-    byte >02
-    text '01'                  ; Padded to get an even payload offset.
+    stri '01'                  ; Padded to get an even payload offset.
     byte token_colon
     byte token_quoted_string
     byte payload_string_length
@@ -114,27 +162,35 @@ payload
 payload_code
     .vdpwa_in_register r15     ; Put vdpwa in r15, for more compact code.
 
-* Shift the program in VDP RAM if necessary (to undo the 8 byte shift of the
-* NanoPEB/CF7+ drivers).
+* Shift the program in VDP RAM if it isn't at the expected location for
+* PEB+FDC+CALL FILES(3). The assembly code has hardwired VDP RAM addresses
+* for code and resources.
     mov  @>8330, r0                  ; The actual address of the program.
                                      ; (not overwritten yet, at this point).
     li   r1, line_number_table_start ; The expected address of the program.
-    c    r0, r1
-    jhe  dont_shift_program    ; Shift (up) if the actual address is too low.
-
     li   r2, basic_program_length
+    li   r3, 1
+    c    r0, r1
+    jeq  dont_shift_program
+    jh   shift_program_down    ; Shift the program down or up.
+
     a    r2, r0                ; Compute the end of the source block.
+    dec  r0
     a    r2, r1                ; Compute the end of the destination block.
+    dec  r1
+    neg  r3
+
+shift_program_down
     ori  r1, >4000             ; Set the write bit on the destination address.
+
 shift_program_loop
-    dec  r0                    ; Read a byte.
-    .vdpwa r0
+    .vdpwa r0                  ; Read a byte.
+    a    r3, r0
+    .vdprd r4
     nop
-    .vdprd r3
-    dec  r1                    ; Write a byte.
-    .vdpwa r1
-    nop
-    .vdpwd r3
+    .vdpwa r1                  ; Write a byte.
+    a    r3, r1
+    .vdpwd r4
     dec  r2
     jne  shift_program_loop    ; Until all bytes have been moved.
 
@@ -160,28 +216,33 @@ load_code_loop                 ; Copy the bytes.
     jne  load_code_loop
     jmp  >8300                 ; Branch to the code that we just copied.
 
-* GPL interpreter workspace during the GPL MOVE instruction. The console ROM
-* code branches to our payload code after it has copied our byte >83 to RAM
-* address >83ec, which is the MSB of r6.
+* GPL interpreter workspace during the GPL MOVE instruction.
+* We're overwriting it in our version of the jailbreak, to obtain immediate
+* control, without ever returning to GPL code, interrupt handlers, or ROM code.
     aorg
     data >0000 ; r0
-    data $ + 2 ; r1  VDP source address of the next byte (must be in the same
-               ;     >0100 page as in the live string below the program).
-               ;     The MOVE instruction then continues copying this original
-               ;     of the live string.
+    data >0000 ; r1  VDP source address of the next byte.
+               ;     We're setting it to >00xx, so it will start reading from
+               ;     the screen table, which we've prepared in the BASIC part
+               ;     of the jailbreak. It will:
+               ;     - set the contents of >83e3 (the LSB of r1) to >ff (or
+               ;       maybe >83, which is also accounted for).
+               ;     - set the contents of >83e4 (r2, the RAM destionation)
+               ;       to >83ec.
+               ;     - set the contents of >83ec (the MSB of r6) to >83,
+               ;       so r6 becomes >8364.
+               ;     The GPL MOVE instruction will then branch to our payload
+               ;     at this address.
+    data >83ec ; r2  These values are actually copied from the screen table,
+    data >8364 ; r6  but we still need to have a sufficient number of bytes.
 
-r2_vdp_peb     ;     The next byte that we get with PEB/FDC.
-    data >83ec ; r2  Write the next byte to the MSB of r6.
-    data payload_code ; r6 Let GPL MOVE branch to our payload (must be >8364).
-
-    bss  4     ;     Pad the block to 8 bytes.
-
-r2_vdp_nanopeb ;     The next byte that we get with NanoPEB/CF7+
-               ;     (the whole program is shifted 8 bytes down in VDP RAM).
-    data >83ec ; r2  Write the next byte to the MSB of r6.
-    data payload_code ; r6 Let GPL MOVE branch to our payload (must be >8364).
-
-
+;   data >0000 ; r0
+;   aorg
+;   data $ + 2 ; r1  VDP source address of the next byte (must be in the same
+;              ;     >0100 page as in the live string below the program).
+;              ;     The MOVE instruction then continues copying this original
+;              ;     of the live string.
+;   xorg >83e4
 ;   data $ + 2 ; r2  RAM destination address of the next byte.
 ;   data >8358 ; r3
 ;   data >0090 ; r4
@@ -203,7 +264,7 @@ r2_vdp_nanopeb ;     The next byte that we get with NanoPEB/CF7+
     aorg
 payload_string_length equ $ - payload_string_start
     byte token_line_terminator
-payload_tokens_length equ $ - payload_tokens
+tokens_line_open_length equ $ - tokens_line_open
 
 *****************************************************************************
 * Macro: check if the current code block still has bytes available.
