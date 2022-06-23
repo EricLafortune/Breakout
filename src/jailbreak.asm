@@ -64,7 +64,7 @@ basic_program_start  equ basic_program_end - basic_program_length
 * The BASIC program.
 line_number_table_start        ; Lines in reverse order.
     data 9
-    data tokens_line_open
+    data tokens_line_call
     data 8
     data tokens_line_hchar5
     data 7
@@ -126,25 +126,22 @@ tokens_line_hchar5
     .call3 'HCHAR', '13', '5', '140'       ; VDP >0184:        >8c + >60 = >ec
     even
 
-* Call OPEN for the jailbreak. Technique developed by the brothers Riccardo
-* and Corrado Tesio.
+* Invoke CALL for the jailbreak. Technique developed (with OPEN) by the
+* brothers Riccardo and Corrado Tesio, and further simplified (with CALL) by
+* senior_falcon.
 token_table_start
-    byte tokens_line_open_length
-tokens_line_open                 ; BASIC line OPEN #1:"... <payload> ..."
-    byte token_open
-    byte token_hash
+    byte tokens_line_call_length
+tokens_line_call                 ; BASIC line CALL <... payload ...>
+    byte token_call
     byte token_unquoted_string
-    stri '01'                  ; Padded to get an even payload offset.
-    byte token_colon
-    byte token_quoted_string
     byte payload_string_length
 payload_string_start
 
 *****************************************************************************
-* The string is the payload that the OPEN statement copies to the scratchpad
-* RAM for us. Its length is larger than >7f, which defeats the length check of
-* the OPEN implementation (signed byte check in GPL). We can thus overwrite
-* all relevant contents (>b6 bytes at >834a .. >83ff).
+* The DSRLNK subroutine at G>03D9 copies the string argument of CALL (or OPEN)
+* to the scratchpad RAM for us. Its length is larger than >7f, which defeats
+* the length check (signed byte check at G>03FE). We can thus overwrite all
+* relevant contents (>b6 bytes at >834a .. >83ff).
 * The payload must not contain a filename separator '.' (>2e), as OPEN would
 * then truncate it.
 * The contents of the standard scratchpad RAM are documented in
@@ -163,7 +160,7 @@ payload_code
     .vdpwa_in_register r15     ; Put vdpwa in r15, for more compact code.
 
 * Shift the program in VDP RAM if it isn't at the expected location for
-* PEB+FDC+CALL FILES(3). The assembly code has hardwired VDP RAM addresses
+* PEB+FDC+CALL FILES(3). The assembly code has hardcoded VDP RAM addresses
 * for code and resources.
     mov  @>8330, r0                  ; The actual address of the program.
                                      ; (not overwritten yet, at this point).
@@ -264,7 +261,7 @@ load_code_loop                 ; Copy the bytes.
     aorg
 payload_string_length equ $ - payload_string_start
     byte token_line_terminator
-tokens_line_open_length equ $ - tokens_line_open
+tokens_line_call_length equ $ - tokens_line_call
 
 *****************************************************************************
 * Macro: check if the current code block still has bytes available.
